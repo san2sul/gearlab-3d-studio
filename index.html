@@ -194,7 +194,8 @@ function phase1Suite(){
  return cases;
 }
 $('phase1Test').onclick=()=>{try{const result=phase1Suite();$('phase1Result').textContent=result.map(x=>(x.pass?'✓ ':'✗ ')+x.name+' · 연결체 '+x.t.components+'개 · 부피 '+x.t.volume.toFixed(1)+' mm³ · 면적 0 삼각형 '+x.t.areaZero+'개').join('\n')+'\n'+(result.every(x=>x.pass)?'검증 통과: 현재 지원하는 부품의 기본 구조 확인.':'검증 실패: STL 내보내기 전에 형상을 수정해야 합니다.')+'\n※ 자기 교차·실제 조립 공차·슬라이서 출력 성공은 별도 검증 대상입니다.';}catch(e){$('phase1Result').textContent='검증 실행 실패: '+e.message}};
-/* Mapbox earcut v2.2.4 (ISC License)\nISC License
+/* Mapbox earcut v2.2.4 (ISC License)
+ISC License
 
 Copyright (c) 2016, Mapbox
 

@@ -1046,7 +1046,7 @@ function drillTemplate(){
  const d=geometryDesign(),hole=d.shafts.holeDiameter,ss=d.gear;
  if(!Number.isFinite(hole)||hole<1||hole>30)throw Error('축 구멍 지름은 1~30 mm입니다.');
  if(hole<ss.bore)throw Error('관통 구멍 지름이 기어 축 구멍보다 작습니다. 치수를 확인하세요.');
- const cfg=d.housing,centers=d.shafts.centers,b=housingBounds(),margin=12,W=b.maxX-b.minX+margin*2,H=b.maxY-b.minY+margin*2;
+ const cfg=d.housing,h={x:d.shafts.centers[0][0],y:d.shafts.centers[0][1],x2:d.shafts.centers[1][0],y2:d.shafts.centers[1][1]},centers=d.shafts.centers,b=housingBounds(),margin=12,W=b.maxX-b.minX+margin*2,H=b.maxY-b.minY+margin*2;
  for(let i=0;i<2;i++){let c=centers[i],dist=Infinity;for(let j=0;j<housingPoly.length;j++)dist=Math.min(dist,segmentDistance(c[0],c[1],housingPoly[j],housingPoly[(j+1)%housingPoly.length]));if(!insidePoly(c[0],c[1])||dist<hole/2+cfg.wall/2)throw Error('축 '+(i+1)+'의 구멍이 케이스 벽과 겹칠 수 있습니다.');}
  const xp=x=>x-b.minX+margin,yp=y=>b.maxY-y+margin;
  const pts=housingPoly.map(p=>xp(p[0]).toFixed(3)+','+yp(p[1]).toFixed(3)).join(' ');

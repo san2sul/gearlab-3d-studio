@@ -943,6 +943,50 @@ function polygonGeometryAudit(poly){
  }
  return {valid:errors.length===0,errors:[...new Set(errors)],area,winding:area>0?'CCW':'CW'};
 }
+// Phase 1-2: triangulation area conservation for arbitrary hole rings.
+function triangulateWithHoles2D(outer,holes){
+ const boundary=polygonGeometryAudit(outer);
+ if(!boundary.valid)throw Error('외곽 다각형 오류: '+boundary.errors.join(','));
+ const rings=[outer,...holes],flat=[],starts=[],points=[];
+ for(let k=0;k<rings.length;k++){
+  const ring=rings[k],check=polygonGeometryAudit(ring);
+  if(!check.valid)throw Error('구멍 '+k+' 형상 오류: '+check.errors.join(','));
+  if(k)starts.push(points.length);
+  for(const p of ring){points.push(p);flat.push(...p)}
+ }
+ for(let k=0;k<holes.length;k++){
+  const hole=holes[k];
+  for(const p of hole){
+   if(!pointInPolygon2D(p,outer))throw Error('구멍이 외곽 밖에 있습니다.');
+   for(let i=0;i<outer.length;i++)if(segmentDistance(p[0],p[1],outer[i],outer[(i+1)%outer.length])<1e-7)throw Error('구멍이 외곽 경계에 접합니다.');
+  }
+  for(let i=0;i<hole.length;i++){
+   const a=hole[i],b=hole[(i+1)%hole.length];
+   for(let j=0;j<outer.length;j++)if(segmentsCross(a,b,outer[j],outer[(j+1)%outer.length]))throw Error('구멍이 외곽 경계를 교차합니다.');
+  }
+  for(let j=0;j<k;j++){
+   const other=holes[j];
+   if(pointInPolygon2D(hole[0],other)||pointInPolygon2D(other[0],hole))throw Error('구멍이 서로 포함됩니다.');
+   for(let i=0;i<hole.length;i++)for(let t=0;t<other.length;t++)if(segmentsCross(hole[i],hole[(i+1)%hole.length],other[t],other[(t+1)%other.length]))throw Error('구멍끼리 교차합니다.');
+  }
+ }
+ const triangles=earcut(flat,starts,2),area=triangles.reduce((sum,_,i)=>i%3?sum:sum+Math.abs(cross2(points[triangles[i]],points[triangles[i+1]],points[triangles[i+2]]))/2,0),expected=Math.abs(polyArea(outer))-holes.reduce((a,h)=>a+Math.abs(polyArea(h)),0);
+ if(!triangles.length||Math.abs(area-expected)>Math.max(1e-6,expected*1e-7))throw Error('삼각분할 면적 보존 실패');
+ return {triangles,points,area,expected};
+}
+function pointInPolygon2D(p,poly){
+ let inside=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const a=poly[i],b=poly[j];if((a[1]>p[1])!==(b[1]>p[1])&&p[0]<(b[0]-a[0])*(p[1]-a[1])/(b[1]-a[1])+a[0])inside=!inside}return inside;
+}
+function phase12HoleGate(){
+ const rect=[[0,0],[100,0],[100,80],[0,80]],square=(x,y,r)=>[[x-r,y-r],[x+r,y-r],[x+r,y+r],[x-r,y+r]];
+ const cases=[],test=(name,fn,expected)=>{try{fn();cases.push({name,pass:expected})}catch(e){cases.push({name,pass:!expected,reason:e.message})}};
+ test('구멍 2개 면적 보존',()=>{let x=triangulateWithHoles2D(rect,[square(25,25,5),square(70,50,8)]);if(Math.abs(x.area-7644)>1e-6)throw Error('면적 불일치')},true);
+ test('오목 외곽과 구멍',()=>triangulateWithHoles2D([[0,0],[100,0],[100,30],[40,30],[40,90],[0,90]],[square(20,20,6)]),true);
+ test('외곽 밖 구멍 차단',()=>triangulateWithHoles2D(rect,[square(120,30,5)]),false);
+ test('외곽과 교차하는 구멍 차단',()=>triangulateWithHoles2D(rect,[square(98,30,5)]),false);
+ test('구멍 중첩 차단',()=>triangulateWithHoles2D(rect,[square(30,30,10),square(35,35,10)]),false);
+ return cases;
+}
 function phase12GeometryGate(){
  const shapes=[
   {name:'직사각형',p:[[0,0],[100,0],[100,80],[0,80]],valid:true},
@@ -953,7 +997,7 @@ function phase12GeometryGate(){
  ];
  return shapes.map(x=>{let r=polygonGeometryAudit(x.p),pass=r.valid===x.valid;if(r.valid){let data=x.p.flat(),tri=earcut(data,null,2),sum=0;for(let i=0;i<tri.length;i+=3){let a=x.p[tri[i]],b=x.p[tri[i+1]],c=x.p[tri[i+2]];sum+=Math.abs(cross2(a,b,c))/2}pass=pass&&Math.abs(sum-Math.abs(r.area))<1e-6}return {name:x.name,pass,reason:r.errors.join(',')}})
 }
-$('designSnapshot').onclick=()=>{try{const a=phase11Gate(),b=phase12GeometryGate();$('designSnapshotResult').textContent='1-1 공통 설계 데이터: '+(a.pass?'완료 조건 통과':'실패')+'\\n'+a.cases.map(c=>(c.pass?'✓ ':'✗ ')+c.name+(c.error?' · '+c.error:'')).join('\\n')+'\\n1-2 다각형 기초 검사: '+b.filter(x=>x.pass).length+'/'+b.length+'\\n'+b.map(c=>(c.pass?'✓ ':'✗ ')+c.name+(c.reason?' · '+c.reason:'')).join('\\n')}catch(e){$('designSnapshotResult').textContent='검증 실패: '+e.message}};
+$('designSnapshot').onclick=()=>{try{const a=phase11Gate(),b=phase12GeometryGate(),c=phase12HoleGate();$('designSnapshotResult').textContent='1-1 공통 설계 데이터: '+(a.pass?'완료 조건 통과':'실패')+'\\n'+a.cases.map(c=>(c.pass?'✓ ':'✗ ')+c.name+(c.error?' · '+c.error:'')).join('\\n')+'\\n1-2 다각형 기초 검사: '+b.filter(x=>x.pass).length+'/'+b.length+'\\n'+b.map(c=>(c.pass?'✓ ':'✗ ')+c.name+(c.reason?' · '+c.reason:'')).join('\\n')+'\\n1-2 다중 구멍 검사: '+c.filter(x=>x.pass).length+'/'+c.length+'\\n'+c.map(x=>(x.pass?'✓ ':'✗ ')+x.name).join('\\n')}catch(e){$('designSnapshotResult').textContent='검증 실패: '+e.message}};
 function designConsistencyTest(){
  const d=geometryDesign(),e=geometryDesign(),p=JSON.stringify(d)===JSON.stringify(e),same=d.shafts.centers.every((c,i)=>c.every((v,j)=>v===[housingPlacement.x,housingPlacement.y,housingPlacement.x2,housingPlacement.y2][i*2+j]));
  const lid=perforatedLidFaces(d),flat=lidFaces(d),support=shaftSupportFaces(d);

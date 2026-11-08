@@ -167,7 +167,7 @@ function caseCheck(){
 }
 $('caseCheck').onclick=caseCheck;
 function meshToStl(faces,name){
- let out=['solid '+name];for(const f of faces){let a=f[0],b=f[1],c=f[2],u=b.map((v,i)=>v-a[i]),v=c.map((q,i)=>q-a[i]),n=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]],l=Math.hypot(...n)||1;out.push('facet normal '+n.map(x=>(x/l).toFixed(6)).join(' '),'outer loop',...f.map(p=>'vertex '+p.map(x=>x.toFixed(5)).join(' ')),'endloop','endfacet')}out.push('endsolid '+name);return out.join('\\n');
+ let out=['solid '+name];for(const f of faces){let a=f[0],b=f[1],c=f[2],u=b.map((v,i)=>v-a[i]),v=c.map((q,i)=>q-a[i]),n=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]],l=Math.hypot(...n)||1;out.push('facet normal '+n.map(x=>(x/l).toFixed(6)).join(' '),'outer loop',...f.map(p=>'vertex '+p.map(x=>x.toFixed(5)).join(' ')),'endloop','endfacet')}out.push('endsolid '+name);return out.join('\n');
 }
 function lidFaces(){
  validPolygon();const thickness=Number($('lidThick').value);if(!Number.isFinite(thickness)||thickness<1||thickness>12)throw Error('덮개 두께는 1~12 mm로 지정하세요.');

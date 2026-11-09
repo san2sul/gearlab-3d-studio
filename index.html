@@ -134,12 +134,20 @@ function phase14CaseGate(){
  ]){try{let x=rectangularCaseSolid(poly,cfg);checks.push({name,pass:expected,volume:x.topology.volume})}catch(e){checks.push({name,pass:!expected,reason:e.message})}}
  return checks;
 }
-function buildCase(design){validPolygon();const cfg=design?design.housing:caseConfig(),p=design?design.housing.polygon:housingPoly,tris=triangulate(p),faces=[];const V=(i,z)=>{const q=Array.isArray(i)?i:p[i];return [q[0],q[1],z]};for(const [a,b,c] of tris){faces.push([V(a,cfg.floor),V(b,cfg.floor),V(c,cfg.floor)],[V(c,0),V(b,0),V(a,0)])}
+function buildCase(design){validPolygon();const cfg=design?design.housing:caseConfig(),p=design?design.housing.polygon:housingPoly;
+ if(p.length===4){const xs=p.map(q=>q[0]),ys=p.map(q=>q[1]),minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
+  if(p.every(q=>(q[0]===minX||q[0]===maxX)&&(q[1]===minY||q[1]===maxY))){
+   const solid=rectangularCaseSolid(p,cfg);caseFaces=solid.faces;
+   $('caseStatus').textContent='일체형 직사각형 케이스 생성 · 삼각형 '+caseFaces.length+'개 · 연결체 '+solid.topology.components+' · 메시 검사 통과. 실제 출력 전 슬라이서 확인 필요.';
+   drawCase();return solid;
+  }
+ }
+ const tris=triangulate(p),faces=[];const V=(i,z)=>{const q=Array.isArray(i)?i:p[i];return [q[0],q[1],z]};for(const [a,b,c] of tris){faces.push([V(a,cfg.floor),V(b,cfg.floor),V(c,cfg.floor)],[V(c,0),V(b,0),V(a,0)])}
  for(let i=0;i<p.length;i++){let j=(i+1)%p.length,a=p[i],b=p[j];faces.push([V(a,0),V(b,0),V(b,cfg.floor)],[V(a,0),V(b,cfg.floor),V(a,cfg.floor)])}
  // Wall strips use centered rectangular prisms, each closed independently; overlap at corners is possible.
  for(let i=0;i<p.length;i++){let a=p[i],b=p[(i+1)%p.length],dx=b[0]-a[0],dy=b[1]-a[1],len=Math.hypot(dx,dy),nx=-dy/len*cfg.wall/2,ny=dx/len*cfg.wall/2;
  boxFaces([a[0]+nx,a[1]+ny],[b[0]+nx,b[1]+ny],[b[0]-nx,b[1]-ny],[a[0]-nx,a[1]-ny],cfg.floor,cfg.height,faces)}
- caseFaces=faces;$('caseStatus').textContent='3D 케이스 생성: 삼각형 '+faces.length+'개. 바닥과 벽체가 포함되며 출력 전 슬라이서의 메시 수리 기능으로 검증하세요.';drawCase()}
+ caseFaces=faces;$('caseStatus').textContent='주의: 비직사각형 케이스는 아직 분리된 벽체 방식입니다. 일체형 STL로 검증되지 않았습니다. 3D 케이스 생성: 삼각형 '+faces.length+'개. 바닥과 벽체가 포함되며 출력 전 슬라이서의 메시 수리 기능으로 검증하세요.';drawCase()}
 function drawCase(){
  let r=cc.getBoundingClientRect(),w=r.width,h=r.height,dpr=window.devicePixelRatio||1;
  cc.width=Math.max(1,Math.round(w*dpr));cc.height=Math.max(1,Math.round(h*dpr));

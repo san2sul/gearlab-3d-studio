@@ -1,0 +1,332 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "GearLab Universal Machine Document",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "units",
+    "parts",
+    "occurrences",
+    "joints",
+    "transmissions",
+    "actuators"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "0.1.0"
+    },
+    "units": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "length",
+        "angle",
+        "mass",
+        "time"
+      ],
+      "properties": {
+        "length": {
+          "const": "mm"
+        },
+        "angle": {
+          "const": "rad"
+        },
+        "mass": {
+          "const": "kg"
+        },
+        "time": {
+          "const": "s"
+        }
+      }
+    },
+    "parts": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/part"
+      }
+    },
+    "occurrences": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/occurrence"
+      }
+    },
+    "joints": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/joint"
+      }
+    },
+    "transmissions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/transmission"
+      }
+    },
+    "actuators": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/actuator"
+      }
+    },
+    "studies": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "manufacturing": {
+      "type": "object"
+    },
+    "provenance": {
+      "type": "object"
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "vec3": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "number"
+        }
+      ],
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "quat": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "number"
+        }
+      ],
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "transform": {
+      "type": "object",
+      "required": [
+        "translation",
+        "quaternion"
+      ],
+      "properties": {
+        "translation": {
+          "$ref": "#/$defs/vec3"
+        },
+        "quaternion": {
+          "$ref": "#/$defs/quat"
+        }
+      }
+    },
+    "frame": {
+      "type": "object",
+      "required": [
+        "id",
+        "transform"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "transform": {
+          "$ref": "#/$defs/transform"
+        }
+      }
+    },
+    "part": {
+      "type": "object",
+      "required": [
+        "id",
+        "revision",
+        "frames"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "revision": {
+          "type": "string"
+        },
+        "frames": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/frame"
+          }
+        },
+        "geometry": {
+          "type": "object"
+        },
+        "material": {
+          "type": "string"
+        },
+        "catalog": {
+          "type": "object"
+        }
+      }
+    },
+    "occurrence": {
+      "type": "object",
+      "required": [
+        "id",
+        "partId",
+        "transform"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "partId": {
+          "$ref": "#/$defs/id"
+        },
+        "transform": {
+          "$ref": "#/$defs/transform"
+        },
+        "grounded": {
+          "type": "boolean"
+        }
+      }
+    },
+    "joint": {
+      "type": "object",
+      "required": [
+        "id",
+        "type",
+        "a",
+        "b"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "type": {
+          "enum": [
+            "fixed",
+            "revolute",
+            "prismatic",
+            "cylindrical",
+            "spherical",
+            "planar",
+            "universal",
+            "screw",
+            "custom"
+          ]
+        },
+        "a": {
+          "$ref": "#/$defs/endpoint"
+        },
+        "b": {
+          "$ref": "#/$defs/endpoint"
+        },
+        "limits": {
+          "type": "object"
+        }
+      }
+    },
+    "endpoint": {
+      "type": "object",
+      "required": [
+        "occurrenceId",
+        "frameId"
+      ],
+      "properties": {
+        "occurrenceId": {
+          "$ref": "#/$defs/id"
+        },
+        "frameId": {
+          "$ref": "#/$defs/id"
+        }
+      }
+    },
+    "transmission": {
+      "type": "object",
+      "required": [
+        "id",
+        "type",
+        "jointIds"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "type": {
+          "enum": [
+            "gear",
+            "rack-pinion",
+            "belt",
+            "chain",
+            "differential",
+            "lead-screw",
+            "custom"
+          ]
+        },
+        "jointIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/id"
+          },
+          "minItems": 1
+        },
+        "ratio": {
+          "type": "number"
+        },
+        "efficiency": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "actuator": {
+      "type": "object",
+      "required": [
+        "id",
+        "type",
+        "jointId"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "type": {
+          "enum": [
+            "manual",
+            "dc-motor",
+            "stepper",
+            "servo",
+            "hydraulic",
+            "pneumatic",
+            "thermal",
+            "spring",
+            "custom"
+          ]
+        },
+        "jointId": {
+          "$ref": "#/$defs/id"
+        },
+        "parameters": {
+          "type": "object"
+        }
+      }
+    }
+  }
+}

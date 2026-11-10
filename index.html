@@ -7,16 +7,43 @@ function settings(){let s=Object.fromEntries(fields.map(k=>[k,Number($(k).value)
 function profile(z,m,alpha){let pitch=m*z/2,base=pitch*Math.cos(alpha*Math.PI/180),outer=pitch+m,root=Math.max(m*.4,pitch-1.25*m),half=Math.PI/(2*z);let inv=x=>Math.tan(x)-x, invA=inv(Math.acos(base/pitch));let pts=[];const n=8;function point(r,a){pts.push([r*Math.cos(a),r*Math.sin(a)])}for(let tooth=0;tooth<z;tooth++){let center=tooth*2*Math.PI/z;let angleAt=r=>{let invol=r>base?inv(Math.acos(Math.min(1,base/r))):0;return half+invA-invol};let next=center+2*Math.PI/z;point(root,center-angleAt(Math.max(root,base)));for(let j=0;j<=n;j++){let r=Math.max(root,base)+(outer-Math.max(root,base))*j/n;point(r,center-angleAt(r))}for(let j=1;j<=3;j++)point(outer,center-angleAt(outer)+2*angleAt(outer)*j/3);for(let j=n;j>=0;j--){let r=Math.max(root,base)+(outer-Math.max(root,base))*j/n;point(r,center+angleAt(r))}point(root,center+angleAt(Math.max(root,base)));point(root,center+(2*Math.PI/z-angleAt(Math.max(root,base)))*.45);point(root,next-angleAt(Math.max(root,base)))}return pts;}
 let lastValidSettings=null;
 function build(){try{let s=settings();let center=s.m*(s.z1+s.z2)/2;gears=[{z:s.z1,pts:profile(s.z1,s.m,s.alpha),x:0,color:'#54d7d0'},{z:s.z2,pts:profile(s.z2,s.m,s.alpha),x:center,color:'#ac92fb'}];lastValidSettings=s;$('distance').textContent=center.toFixed(2);$('ratio').textContent=(s.z2/s.z1).toFixed(3)+':1';$('out').textContent=(s.rpm*s.z1/s.z2).toFixed(2);$('checks').innerHTML=`피치원 지름: ${s.m*s.z1} mm / ${s.m*s.z2} mm<br>이끝원 지름: ${(s.m*(s.z1+2)).toFixed(2)} mm / ${(s.m*(s.z2+2)).toFixed(2)} mm<br>기준 중심거리: ${center.toFixed(2)} mm<br>표준 전깊이 치형 근사·백래시 미적용. 20° 압력각에서 작은 잇수의 언더컷 가능성을 확인하세요.`;scale=Math.min(5.5,300/(center+s.m*s.z2));offsetX=0;offsetY=0;$('message').textContent='설계 갱신 완료';draw();}catch(e){$('message').textContent=e.message;}}
-function draw(){let rect=canvas.getBoundingClientRect(),dpr=window.devicePixelRatio||1;canvas.width=Math.max(1,Math.round(rect.width*dpr));canvas.height=Math.max(1,Math.round(rect.height*dpr));ctx.setTransform(dpr,0,0,dpr,0,0);let w=rect.width,h=rect.height;ctx.clearRect(0,0,w,h);if(!gears.length)return;let center=gears[1].x;ctx.save();ctx.translate(w/2-center*scale/2+offsetX,h/2+offsetY);ctx.scale(scale,-scale);let s=lastValidSettings;if(!s)return;gears.forEach((g,i)=>{let a=i===0?angle:-angle*s.z1/s.z2+Math.PI/s.z2;ctx.save();ctx.translate(g.x,0);ctx.rotate(a);ctx.beginPath();g.pts.forEach((p,j)=>j?ctx.lineTo(...p):ctx.moveTo(...p));ctx.closePath();ctx.fillStyle=g.color;ctx.fill();ctx.lineWidth=.25;ctx.strokeStyle='#e7faff';ctx.stroke();ctx.beginPath();ctx.arc(0,0,s.bore/2,0,Math.PI*2);ctx.fillStyle='#102239';ctx.fill();ctx.lineWidth=.35;ctx.stroke();ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(s.m*g.z*.35,0);ctx.strokeStyle='#ffffff';ctx.lineWidth=.8;ctx.stroke();ctx.beginPath();ctx.arc(0,0,s.m*g.z/2,0,Math.PI*2);ctx.lineWidth=.13;ctx.setLineDash([1,1]);ctx.strokeStyle='#122d4b';ctx.stroke();ctx.setLineDash([]);ctx.restore()});ctx.restore();draw3d();if(typeof drawHousing==='function'&&housingPoly.length>=3)drawHousing()}
-let lastRender=0;
+function draw(){let rect=canvas.getBoundingClientRect(),dpr=window.devicePixelRatio||1;canvas.width=Math.max(1,Math.round(rect.width*dpr));canvas.height=Math.max(1,Math.round(rect.height*dpr));ctx.setTransform(dpr,0,0,dpr,0,0);let w=rect.width,h=rect.height;ctx.clearRect(0,0,w,h);if(!gears.length)return;let center=gears[1].x;ctx.save();ctx.translate(w/2-center*scale/2+offsetX,h/2+offsetY);ctx.scale(scale,-scale);let s=lastValidSettings;if(!s)return;gears.forEach((g,i)=>{let a=i===0?angle:-angle*s.z1/s.z2+Math.PI/s.z2;ctx.save();ctx.translate(g.x,0);ctx.rotate(a);ctx.beginPath();g.pts.forEach((p,j)=>j?ctx.lineTo(...p):ctx.moveTo(...p));ctx.closePath();ctx.fillStyle=g.color;ctx.fill();ctx.lineWidth=.25;ctx.strokeStyle='#e7faff';ctx.stroke();ctx.beginPath();ctx.arc(0,0,s.bore/2,0,Math.PI*2);ctx.fillStyle='#102239';ctx.fill();ctx.lineWidth=.35;ctx.stroke();ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(s.m*g.z*.35,0);ctx.strokeStyle='#ffffff';ctx.lineWidth=.8;ctx.stroke();ctx.beginPath();ctx.arc(0,0,s.m*g.z/2,0,Math.PI*2);ctx.lineWidth=.13;ctx.setLineDash([1,1]);ctx.strokeStyle='#122d4b';ctx.stroke();ctx.setLineDash([]);ctx.restore()});ctx.restore();if(typeof draw3d==='function')draw3d();if(typeof drawHousing==='function'&&housingPoly.length>=3)drawHousing()}
+let lastRender=0,last3dRender=0,animationError='';
 function frame(t){
- if(playing&&gears.length){
-  const dt=Math.min(.05,Math.max(0,(t-previous)/1000||0));
-  if(lastValidSettings)angle+=lastValidSettings.rpm*2*Math.PI/60*dt;
-  // The 3D painter is CPU-heavy: cap redraw to ~24fps and avoid the expensive case redraw on every frame.
-  if(t-lastRender>=40){draw();lastRender=t;}
- }
- previous=t;requestAnimationFrame(frame);
+ // Schedule the next frame FIRST: an exception in any preview must not permanently stop playback.
+ requestAnimationFrame(frame);
+ try{
+  const dt=previous>0?Math.min(.08,Math.max(0,(t-previous)/1000)):0;
+  previous=t;
+  if(!playing||!gears.length||!lastValidSettings)return;
+  angle+=lastValidSettings.rpm*2*Math.PI/60*dt;
+  if(t-lastRender>=32){
+   // Fast 2D path: avoid redrawing the thousands of 3D tooth polygons every 2D frame.
+   draw2dOnly();lastRender=t;
+  }
+  if(t-last3dRender>=160){
+   try{draw3d();}catch(e){if(animationError!==e.message){animationError=e.message;$('message').textContent='3D 미리보기 오류: '+e.message+' (2D 회전은 계속됩니다.)';}}
+   last3dRender=t;
+  }
+ }catch(e){if(animationError!==e.message){animationError=e.message;$('message').textContent='회전 오류: '+e.message;}}
+}
+function draw2dOnly(){
+ let rect=canvas.getBoundingClientRect(),dpr=window.devicePixelRatio||1;
+ canvas.width=Math.max(1,Math.round(rect.width*dpr));canvas.height=Math.max(1,Math.round(rect.height*dpr));
+ ctx.setTransform(dpr,0,0,dpr,0,0);
+ const w=rect.width,h=rect.height;ctx.clearRect(0,0,w,h);
+ if(!gears.length||!lastValidSettings)return;
+ const s=lastValidSettings,center=gears[1].x;
+ ctx.save();ctx.translate(w/2-center*scale/2+offsetX,h/2+offsetY);ctx.scale(scale,-scale);
+ gears.forEach((g,i)=>{
+  const a=i===0?angle:-angle*s.z1/s.z2+Math.PI/s.z2;
+  ctx.save();ctx.translate(g.x,0);ctx.rotate(a);ctx.beginPath();
+  g.pts.forEach((p,j)=>j?ctx.lineTo(...p):ctx.moveTo(...p));
+  ctx.closePath();ctx.fillStyle=g.color;ctx.fill();ctx.strokeStyle='#e7faff';ctx.lineWidth=.25;ctx.stroke();
+  ctx.beginPath();ctx.arc(0,0,s.bore/2,0,Math.PI*2);ctx.fillStyle='#102239';ctx.fill();
+  ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(s.m*g.z*.35,0);ctx.lineWidth=.8;ctx.strokeStyle='#fff';ctx.stroke();
+  ctx.restore();
+ });ctx.restore();
 }
 function stl(g,name){let s=settings(),p=g.pts,faces=[],depth=s.thick/2;let n=p.length;const push=(a,b,c)=>faces.push([a,b,c]);const V=(q,z)=>[q[0],q[1],z]; // annular triangulation from tooth outline to circular bore: each perimeter vertex paired with angle-matched bore point
 let inner=p.map(q=>{let a=Math.atan2(q[1],q[0]);return [Math.cos(a)*s.bore/2,Math.sin(a)*s.bore/2]});for(let i=0;i<n;i++){let j=(i+1)%n;let a=p[i],b=p[j],u=inner[i],v=inner[j];push(V(a,depth),V(b,depth),V(v,depth));push(V(a,depth),V(v,depth),V(u,depth));push(V(b,-depth),V(a,-depth),V(u,-depth));push(V(b,-depth),V(u,-depth),V(v,-depth));push(V(a,-depth),V(b,-depth),V(b,depth));push(V(a,-depth),V(b,depth),V(a,depth));push(V(v,-depth),V(u,-depth),V(u,depth));push(V(v,-depth),V(u,depth),V(v,depth))}let lines=['solid '+name];for(let f of faces){let ab=f[1].map((v,i)=>v-f[0][i]),ac=f[2].map((v,i)=>v-f[0][i]);let no=[ab[1]*ac[2]-ab[2]*ac[1],ab[2]*ac[0]-ab[0]*ac[2],ab[0]*ac[1]-ab[1]*ac[0]],l=Math.hypot(...no)||1;lines.push('facet normal '+no.map(x=>(x/l).toFixed(6)).join(' '),'outer loop',...f.map(v=>'vertex '+v.map(x=>x.toFixed(6)).join(' ')),'endloop','endfacet')}lines.push('endsolid '+name);download(name+'.stl',lines.join('\n'),'model/stl')}
